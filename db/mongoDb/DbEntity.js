@@ -1,6 +1,6 @@
 const __ = require('underscore'),
-{each, map, pick, findIndex, initial, extend, last, isString, isUndefined} = __,
-createSubdocConfig = require('./CreateSubdocConfig')
+    {each, map, pick, findIndex, initial, extend, last, isString, isUndefined} = __,
+    createSubdocConfig = require('./CreateSubdocConfig')
 
 function __getUpdatedAtNameFromSchema(schema) {
     return schema.schema.$timestamps.updatedAt
@@ -8,54 +8,54 @@ function __getUpdatedAtNameFromSchema(schema) {
 
 const __genWhere = (subDocId, path) => {
     let paths = isString(path) ? path.split('.') : path
-	let whereClouse
-	for(i=0;i<paths.length;i++) {
-		if (i == 0) {
-			whereClouse = {}
-			whereClouse[paths[paths.length -i -1]] = {
-					$elemMatch: {_id: subDocId} 
-				}
-		} else {
-			up = {}
-			up[paths[paths.length -i -1]] = {
-				$elemMatch: whereClouse
-			}
-			whereClouse = up
-		}
-	}
-	return whereClouse
+    let whereClouse
+    for(i=0;i<paths.length;i++) {
+        if (i == 0) {
+            whereClouse = {}
+            whereClouse[paths[paths.length -i -1]] = {
+                $elemMatch: {_id: subDocId}
+            }
+        } else {
+            up = {}
+            up[paths[paths.length -i -1]] = {
+                $elemMatch: whereClouse
+            }
+            whereClouse = up
+        }
+    }
+    return whereClouse
 }
 
 const __findSubDocFromParent = (doc, subDocId, path, filter) => {
     let paths = isString(path) ? path.split('.') : path
-	let indexes = [paths.length]
-	__findIndex = (subDoc, from) => {
-		indexes[from] = findIndex(subDoc[paths[from]], el => {
-			if (from + 1 == paths.length) {
-				e = el._id == subDocId 
-				return e
-			}
-			__findIndex(el, from + 1)
-			e = indexes[from + 1] >= 0
-			return e
-		})
-	}
-	__findIndex(doc, 0)
-	
-	__getSub = (doc, lev, pathDoc) => {
-		let sd = doc[paths[lev]][indexes[lev]]
-		if (lev == paths.length - 1) {
+    let indexes = [paths.length]
+    __findIndex = (subDoc, from) => {
+        indexes[from] = findIndex(subDoc[paths[from]], el => {
+            if (from + 1 == paths.length) {
+                e = el._id == subDocId
+                return e
+            }
+            __findIndex(el, from + 1)
+            e = indexes[from + 1] >= 0
+            return e
+        })
+    }
+    __findIndex(doc, 0)
+
+    __getSub = (doc, lev, pathDoc) => {
+        let sd = doc[paths[lev]][indexes[lev]]
+        if (lev == paths.length - 1) {
             const jsonSubDoc = sd.toJSON()
             extend(pathDoc, filter ? filter(jsonSubDoc) : jsonSubDoc)
             return sd
         } else {
             pathDoc[paths[lev]] = sd.id
         }
-		return __getSub(sd, lev + 1, pathDoc)
-	}
+        return __getSub(sd, lev + 1, pathDoc)
+    }
 
     let pathDoc = {}
-	let subDoc = __getSub(doc, 0, pathDoc)
+    let subDoc = __getSub(doc, 0, pathDoc)
     return {pathDoc, subDoc}
 }
 
@@ -68,13 +68,13 @@ class Entity {
     // TODO: write test case
     create(data) {
         const schema = this.__config.schema,
-        projection = this.__config.projection
-		return new schema(data).save()
+            projection = this.__config.projection
+        return new schema(data).save()
             .then(doc => {
-				return schema.findById(doc.id, projection)
+                return schema.findById(doc.id, projection)
             })
             .then(doc => {
-				return doc.toJSON()
+                return doc.toJSON()
             })
     }
 
@@ -85,7 +85,7 @@ class Entity {
         const parentPath = initial(subPath)
         const subFld = last(subPath)
         let findParent = parentPath.length == 0 ? this.__config.schema.findById(parentId) : this.findBySubDocId(parentId, parentPath)
-        return findParent    
+        return findParent
             .then(doc => {
                 if (!doc) return Promise.reject()
                 subDoc = parentPath.length == 0 ? doc : __findSubDocFromParent(doc, parentId, parentPath).subDoc
@@ -166,6 +166,28 @@ class Entity {
             })
     }
 
+    updateManySubDoc(path, data, subIds) {
+        return this.findBySubDocId(data.id, path)
+            .then(doc => {
+                if (!doc || !isUndefined(data.__v) && data.__v != doc.__v) return
+
+                let subDoc
+                subIds.forEach(subId => {
+                    subDoc = __findSubDocFromParent(doc, subId, path).subDoc
+                    each(data.toUpdate, (val, fld)  => {
+                        if (__.isString(val) && val.length === 0) subDoc[fld] = undefined
+                        else subDoc[fld] = val
+                    })
+                })
+
+                return doc.save()
+                    .then(() => {
+                        return subDoc.toJSON()
+                    })
+            })
+    }
+
+
     ifNoneMatch(id, version) {
         return this.ifMatch(id, version)
             .then((data) => {
@@ -242,8 +264,8 @@ class Entity {
 
     remove(id) {
         return this.__config.schema.deleteOne({
-                _id: id
-            })
+            _id: id
+        })
             .then((data) => {
                 if (data.n === 0 && data.deletedCount === 0) return
                 return (data.deletedCount === 1 && data.ok === 1)
@@ -270,7 +292,7 @@ class Entity {
         const parentPath = initial(paths)
         const subFld = last(paths)
         let findParent = parentPath.length == 0 ? this.__config.schema.findById(parentId) : this.findBySubDocId(parentId, parentPath)
-        return findParent    
+        return findParent
             .then(doc => {
                 if (!doc) return []
                 let subDoc = parentPath.length == 0 ? doc : __findSubDocFromParent(doc, parentId, parentPath).subDoc
@@ -290,7 +312,7 @@ const __create = (config, addIn) => {
         findById(id, projection) {
             return entity.findById(id, projection)
         },
-        
+
         findBySubDocId(subDocId, paths) {
             return entity.findBySubDocId(subDocId, paths)
         },
@@ -317,6 +339,10 @@ const __create = (config, addIn) => {
 
         updateSubDoc(path, data) {
             return entity.updateSubDoc(path, data)
+        },
+
+        updateManySubDoc(path, data, subIds) {
+            return entity.updateManySubDoc(path, data, subIds)
         },
 
         remove(id) {
